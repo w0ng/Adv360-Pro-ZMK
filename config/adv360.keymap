@@ -8,6 +8,23 @@
 / {
     behaviors {
       #include "version.dtsi"
+
+      /**
+       * Ctrl+A with any physically-held modifiers masked out.
+       *
+       * Both morph branches are the same key; the morph exists purely for its
+       * side effect of masking mods while the morphed binding is held. ZMK
+       * builds the HID report as (explicit & ~masked) | implicit, so a held
+       * Shift/Alt/Gui is suppressed while LC(A)'s implicit Ctrl still applies.
+       * Without this, holding Shift turns the prefix into C-S-a and tmux never
+       * sees it.
+       */
+      tmux_prefix: tmux_prefix {
+        compatible = "zmk,behavior-mod-morph";
+        #binding-cells = <0>;
+        bindings = <&kp LC(A)>, <&kp LC(A)>;
+        mods = <(MOD_LCTL|MOD_LSFT|MOD_LALT|MOD_LGUI|MOD_RCTL|MOD_RSFT|MOD_RALT|MOD_RGUI)>;
+      };
     };
 
     macros {
@@ -15,6 +32,9 @@
        * tmux prefix: taps Ctrl+A, then the passed key. Works for any keycode,
        * including punctuation (e.g. &tmux LBKT -> C-a [ to enter copy mode).
        * Usage: &tmux N -> C-a n   (hold the layer key + press n repeatedly = C-a n C-a n ...)
+       *
+       * Held modifiers apply only to the passed key, never to the prefix:
+       * Shift + x -> C-a Shift+x
        */
       tmux: tmux {
         compatible = "zmk,behavior-macro-one-param";
@@ -22,7 +42,7 @@
         wait-ms = <5>;
         tap-ms = <5>;
         bindings
-            = <&kp LC(A)>
+            = <&tmux_prefix>
             , <&macro_param_1to1>
             , <&kp MACRO_PLACEHOLDER>;
       };
