@@ -223,6 +223,41 @@ class ChordDrill(unittest.TestCase):
         self.assertEqual(r["same"][0], 1)
 
 
+class Triggers(unittest.TestCase):
+    """Any key can trigger a misfire, including keys carrying no modifier."""
+
+    def _roll(self, mod, other):
+        # mod down, other down, other UP, mod up -> the interrupt completes
+        prm = replace(STOCK, tapping_term=400, prior_idle=0)
+        return simulate([("code", [Press(mod, 0, 200), Press(other, 40, 90)])],
+                        prm, set(BOTTOM_HRM))
+
+    def test_plain_alpha_key_triggers_a_misfire(self):
+        # the xy case: x carries a mod, y carries nothing
+        r = self._roll("KeyX", "KeyY")
+        self.assertEqual(r["misfires"], 1)
+        self.assertEqual(r["triggers"], {"KeyY": 1})
+
+    def test_non_alpha_keys_trigger_too(self):
+        for other in ("Enter", "Backspace", "Quote", "Digit9", "Space"):
+            with self.subTest(other=other):
+                self.assertEqual(self._roll("KeyX", other)["triggers"],
+                                 {other: 1})
+
+    def test_off_board_triggers_are_not_silently_dropped(self):
+        # print_board only draws ON_BOARD keys, so anything else has to be
+        # reported separately or the count vanishes from the report.
+        from analyze import ON_BOARD
+        for other in ("Enter", "Backspace"):
+            self.assertNotIn(other, ON_BOARD)
+            self.assertEqual(self._roll("KeyX", other)["triggers"], {other: 1})
+
+    def test_same_hand_trigger_is_blocked_not_counted(self):
+        r = self._roll("KeyX", "KeyG")          # both left hand
+        self.assertEqual(r["misfires"], 0)
+        self.assertEqual(r["triggers"], {})
+
+
 class ModeStats(unittest.TestCase):
     def test_wpm_excludes_long_pauses(self):
         # 10 keys at 100 ms apart, then a 30 s gap, then 10 more. Wall clock

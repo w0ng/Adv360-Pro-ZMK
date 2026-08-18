@@ -800,23 +800,28 @@ def _heat(rate):
     return "█"
 
 
-# The alpha block, as it sits on the board. Split keyboards separate the hands
-# but the QWERTY grid is the same, so one picture serves both.
-BOARD = [["KeyQ", "KeyW", "KeyE", "KeyR", "KeyT",
-          "KeyY", "KeyU", "KeyI", "KeyO", "KeyP"],
-         ["KeyA", "KeyS", "KeyD", "KeyF", "KeyG",
-          "KeyH", "KeyJ", "KeyK", "KeyL", "Semicolon"],
-         ["KeyZ", "KeyX", "KeyC", "KeyV", "KeyB",
-          "KeyN", "KeyM", "Comma", "Period", "Slash"]]
-BOARD_ROW_NAME = ["top", "home", "bottom"]
+# The board as an Adv360 lays it out, both halves. Any key can trigger a
+# misfire — the interrupting key needs no modifier of its own — so the picture
+# has to cover more than just the mod candidates.
+BOARD = [
+    ("num", ["Equal", "Digit1", "Digit2", "Digit3", "Digit4", "Digit5"],
+            ["Digit6", "Digit7", "Digit8", "Digit9", "Digit0", "Minus"]),
+    ("top", ["Tab", "KeyQ", "KeyW", "KeyE", "KeyR", "KeyT"],
+            ["KeyY", "KeyU", "KeyI", "KeyO", "KeyP", "Backslash"]),
+    ("home", ["ControlLeft", "KeyA", "KeyS", "KeyD", "KeyF", "KeyG"],
+             ["KeyH", "KeyJ", "KeyK", "KeyL", "Semicolon", "Quote"]),
+    ("bottom", ["ShiftLeft", "KeyZ", "KeyX", "KeyC", "KeyV", "KeyB"],
+               ["KeyN", "KeyM", "Comma", "Period", "Slash", "ShiftRight"]),
+]
+ON_BOARD = {c for _n, a, b in BOARD for c in a + b}
 
 
 def print_board(A):
     """One keyboard, both sides of every misfire.
 
     A mod key carries a heat glyph for how often it misfired. Any key that
-    triggered somebody else's misfire carries that count in parentheses — so
-    you can see the roll, not just the key that lost.
+    triggered somebody else's misfire carries that count in parentheses, so the
+    roll is visible and not just the key that lost.
     """
     rate: dict[str, float] = {}
     trig: dict[str, int] = {}
@@ -830,26 +835,34 @@ def print_board(A):
 
     print("  heat = misfires per 1000 presses on that mod key")
     print("         · 0    ▁ <2    ▃ 2-5    ▅ 5-10    █ >10")
-    print("  (n)  = times this key triggered another key's misfire")
+    print("  (n)  = times this key triggered another key's misfire, by")
+    print("         completing its own press and release while a mod was held")
     print()
-    for name, row in zip(BOARD_ROW_NAME, BOARD):
+    for name, left, right in BOARD:
         cells = []
-        for n, code in enumerate(row):
-            g = glyph(code)
-            cell = g + (_heat(rate[code]) if code in rate else " ")
-            if code in trig:
-                cell += f"({trig[code]})"
-            cells.append(f"{cell:<6}")
-            if n == 4:
-                cells.append("   ")
+        for half in (left, right):
+            for code in half:
+                cell = glyph(code) + (_heat(rate[code]) if code in rate else " ")
+                if code in trig:
+                    cell += f"({trig[code]})"
+                cells.append(f"{cell:<5}")
+            cells.append("  ")
         print(f"    {name:<7}" + "".join(cells).rstrip())
-    sp = trig.get("Space", 0)
-    if sp:
-        # thumbs sit between the halves: 5 cells of 6 chars, then the gap
-        print(f"    {'thumb':<7}{'':<28}␣({sp})")
+    off = sorted((c, n) for c, n in trig.items() if c not in ON_BOARD)
+    if off:
+        print(f"    {'other':<7}" + "  ".join(f"{glyph(c)}({n})" for c, n in off))
+    print()
     untested = [glyph(c) for c in DEFAULT_HRM + BOTTOM_HRM if c not in rate]
     if untested:
-        print(f"    no data for: {', '.join(untested)}")
+        print(f"    no press data for: {', '.join(untested)}")
+    if trig:
+        top = sorted(trig.items(), key=lambda x: (-x[1], x[0]))
+        print("    triggered by:      "
+              + "  ".join(f"{glyph(c)}×{n}" if n > 1 else glyph(c)
+                          for c, n in top))
+    else:
+        print("    no key triggered a misfire: every one fired on the "
+              "tapping-term timer")
     print()
 
 

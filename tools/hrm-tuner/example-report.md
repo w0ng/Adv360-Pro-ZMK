@@ -168,12 +168,16 @@ python3 analyze.py ~/Downloads/typing-2026-08-18-16-17-10.json
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   heat = misfires per 1000 presses on that mod key
          · 0    ▁ <2    ▃ 2-5    ▅ 5-10    █ >10
-  (n)  = times this key triggered another key's misfire
+  (n)  = times this key triggered another key's misfire, by
+         completing its own press and release while a mod was held
 
-    top    q     w     e     r     t        y     u     i     o     p
-    home   a·    s▃    d·    f·    g        h     j·    k·    l▅    ;█
-    bottom z·    x·    c▃    v·    b        n     m·    ,·    .▃    /·
-    thumb                              ␣(2)
+    num    =    1    2    3    4    5      6    7    8    9    0    -
+    top    ⇥    q    w    e    r    t      y    u    i    o    p    \
+    home   ⌃    a·   s▃   d·   f·   g      h    j·   k·   l▅   ;█   '
+    bottom ⇧    z·   x·   c▃   v·   b      n    m·   ,·   .▃   /·   ⇧
+    other  ␣(2)
+
+    triggered by:      ␣×2
 
   finger / key             presses  mis    /1k  chords  fail   rate   verdict
   R pinky                      236    3   12.7      13     1     8%
