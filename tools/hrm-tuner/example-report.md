@@ -6,18 +6,6 @@ stays readable. Regenerate with:
 ```sh
 python3 analyze.py ~/Downloads/typing-2026-08-18-16-17-10.json
 ```
-
-The recording behind this is 10,771 keystrokes over 31 minutes across all six
-tabs — about 2,000 words equivalent — from a developer who types ~125 wpm on
-word lists and ~65 wpm on TypeScript. The raw recording is not committed: it is
-a keystroke log, and the free-typing tab contains whatever its author happened
-to write. If you want a sample to run against, `tests/test_analyze.py` generates
-a deterministic synthetic one.
-
-Read section 1 for the answer, section 5 to understand rather than obey, and
-section 10 before believing any of it.
-
-```
 ══════════════════════════════════════════════════════════════════════════
   HOME ROW MOD TUNER
   10,771 keystrokes · 4 typing tabs + 2 chord drills
@@ -178,10 +166,14 @@ section 10 before believing any of it.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   6. WHERE IT GOES WRONG
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  scale  · 0   ▁ <2   ▃ 2-5   ▅ 5-10   █ >10   misfires per 1000
+  heat = misfires per 1000 presses on that mod key
+         · 0    ▁ <2    ▃ 2-5    ▅ 5-10    █ >10
+  (n)  = times this key triggered another key's misfire
 
-    home row    a·  s▃  d·  f·      j·  k·  l▅  ;█
-    bottom row  z·  x·  c▃  v·      m·  ,·  .▃  /·
+    top    q     w     e     r     t        y     u     i     o     p
+    home   a·    s▃    d·    f·    g        h     j·    k·    l▅    ;█
+    bottom z·    x·    c▃    v·    b        n     m·    ,·    .▃    /·
+    thumb                              ␣(2)
 
   finger / key             presses  mis    /1k  chords  fail   rate   verdict
   R pinky                      236    3   12.7      13     1     8%

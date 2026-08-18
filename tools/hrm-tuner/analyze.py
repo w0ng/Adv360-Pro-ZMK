@@ -225,6 +225,7 @@ def simulate(sessions: list[tuple[str, list[Press]]], prm: Params,
     bigrams: dict[str, int] = {}
     trigrams: dict[str, int] = {}
     words: dict[str, int] = {}
+    triggers: dict[str, int] = {}      # the OTHER key, the one that fired it
 
     for mode, raw in sessions:
         presses = sorted(raw, key=lambda p: p.down)
@@ -256,6 +257,8 @@ def simulate(sessions: list[tuple[str, list[Press]]], prm: Params,
                     trigrams[ctx] = trigrams.get(ctx, 0) + 1
                     w = word_at(presses, i)
                     words[w] = words.get(w, 0) + 1
+                    if other is not None:
+                        triggers[other.code] = triggers.get(other.code, 0) + 1
                 elif why not in ("require-prior-idle", "quick-tap"):
                     deferred += 1
                     pm["deferred"] += 1
@@ -265,7 +268,8 @@ def simulate(sessions: list[tuple[str, list[Press]]], prm: Params,
 
     return {"total": total, "misfires": holds, "deferred": deferred,
             "examples": misfires, "cause": cause, "per": per, "by_key": by_key,
-            "bigrams": bigrams, "trigrams": trigrams, "words": words}
+            "bigrams": bigrams, "trigrams": trigrams, "words": words,
+            "triggers": triggers}
 
 
 def simulate_chords(sessions: list[tuple[str, list[Press]]], prm: Params,
@@ -796,6 +800,59 @@ def _heat(rate):
     return "█"
 
 
+# The alpha block, as it sits on the board. Split keyboards separate the hands
+# but the QWERTY grid is the same, so one picture serves both.
+BOARD = [["KeyQ", "KeyW", "KeyE", "KeyR", "KeyT",
+          "KeyY", "KeyU", "KeyI", "KeyO", "KeyP"],
+         ["KeyA", "KeyS", "KeyD", "KeyF", "KeyG",
+          "KeyH", "KeyJ", "KeyK", "KeyL", "Semicolon"],
+         ["KeyZ", "KeyX", "KeyC", "KeyV", "KeyB",
+          "KeyN", "KeyM", "Comma", "Period", "Slash"]]
+BOARD_ROW_NAME = ["top", "home", "bottom"]
+
+
+def print_board(A):
+    """One keyboard, both sides of every misfire.
+
+    A mod key carries a heat glyph for how often it misfired. Any key that
+    triggered somebody else's misfire carries that count in parentheses — so
+    you can see the roll, not just the key that lost.
+    """
+    rate: dict[str, float] = {}
+    trig: dict[str, int] = {}
+    for key in ("home", "bottom"):
+        d = A["R"][key]
+        for code, v in d["fp"]["by_key"].items():
+            if v["presses"]:
+                rate[code] = 1000 * v["misfires"] / v["presses"]
+        for code, n in d["fp"].get("triggers", {}).items():
+            trig[code] = trig.get(code, 0) + n
+
+    print("  heat = misfires per 1000 presses on that mod key")
+    print("         · 0    ▁ <2    ▃ 2-5    ▅ 5-10    █ >10")
+    print("  (n)  = times this key triggered another key's misfire")
+    print()
+    for name, row in zip(BOARD_ROW_NAME, BOARD):
+        cells = []
+        for n, code in enumerate(row):
+            g = glyph(code)
+            cell = g + (_heat(rate[code]) if code in rate else " ")
+            if code in trig:
+                cell += f"({trig[code]})"
+            cells.append(f"{cell:<6}")
+            if n == 4:
+                cells.append("   ")
+        print(f"    {name:<7}" + "".join(cells).rstrip())
+    sp = trig.get("Space", 0)
+    if sp:
+        # thumbs sit between the halves: 5 cells of 6 chars, then the gap
+        print(f"    {'thumb':<7}{'':<28}␣({sp})")
+    untested = [glyph(c) for c in DEFAULT_HRM + BOTTOM_HRM if c not in rate]
+    if untested:
+        print(f"    no data for: {', '.join(untested)}")
+    print()
+
+
 def _grade(v, bands):
     for g, lim in bands:
         if v <= lim:
@@ -1083,19 +1140,7 @@ def print_report(A, W) -> None:
 
     # ---- 6. where it goes wrong -----------------------------------------
     _section(6, "WHERE IT GOES WRONG", W)
-    print("  scale  · 0   ▁ <2   ▃ 2-5   ▅ 5-10   █ >10"
-          "   misfires per 1000")
-    print()
-    for key, ks, _dr, label, _kl in ROWS_META[::-1]:
-        cells = []
-        for n, c in enumerate(ks):
-            d = A["R"][key]["fp"]["by_key"].get(c)
-            r = 1000 * d["misfires"] / d["presses"] if d and d["presses"] else None
-            cells.append(f"{glyph(c)}{_heat(r)}")
-            if n == 3:
-                cells.append("  ")
-        print(f"    {label:<12}" + "  ".join(cells))
-    print()
+    print_board(A)
     fingers: dict[str, dict] = {}
     for key in ("home", "bottom"):
         d = A["R"][key]
