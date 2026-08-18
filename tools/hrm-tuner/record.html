@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HRM Tuner — Recorder</title>
+<style>
+  :root { color-scheme: light dark; --bg:#fbfbfa; --fg:#1a1a19; --mut:#6b6b68;
+          --line:#dedddb; --card:#fff; --accent:#c96442; --ok:#2f7d5d; --warn:#b4551f; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#1f1e1d; --fg:#f0eee6; --mut:#9a9791; --line:#3a3835; --card:#262524; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:24px; background:var(--bg); color:var(--fg);
+         font:15px/1.55 ui-sans-serif,-apple-system,"SF Pro Text",system-ui,sans-serif; }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  h1 { font-size:19px; margin:0 0 4px; letter-spacing:-0.01em; }
+  .sub { color:var(--mut); font-size:13px; margin:0 0 20px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px;
+          padding:16px; margin-bottom:14px; }
+  .modes { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+  button { font:inherit; padding:7px 13px; border-radius:7px; border:1px solid var(--line);
+           background:var(--card); color:var(--fg); cursor:pointer; }
+  button:hover { border-color:var(--mut); }
+  button.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+  textarea { width:100%; min-height:190px; padding:12px; border-radius:8px;
+             border:1px solid var(--line); background:var(--bg); color:var(--fg);
+             font:14px/1.6 ui-monospace,"SF Mono",Menlo,monospace; resize:vertical; }
+  .passage { font:13.5px/1.7 ui-monospace,"SF Mono",Menlo,monospace; color:var(--mut);
+             background:var(--bg); border:1px solid var(--line); border-radius:8px;
+             padding:12px; margin-bottom:12px; white-space:pre-wrap; max-height:200px; overflow:auto; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:12px; }
+  .stat b { display:block; font-size:22px; font-variant-numeric:tabular-nums; letter-spacing:-0.02em; }
+  .stat span { font-size:11px; color:var(--mut); text-transform:uppercase; letter-spacing:0.05em; }
+  .hint { font-size:13px; color:var(--mut); margin:10px 0 0; }
+  .rec { display:inline-block; width:8px; height:8px; border-radius:50%; background:#c33;
+         margin-right:6px; vertical-align:middle; animation:p 1.4s infinite; }
+  @keyframes p { 50% { opacity:.25; } }
+  code { background:var(--bg); border:1px solid var(--line); border-radius:4px; padding:1px 5px; font-size:13px; }
+  .chord { font:600 26px ui-monospace,Menlo,monospace; letter-spacing:0.02em; margin:8px 0; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .cov { display:grid; grid-template-columns:minmax(120px,150px) 58px 1fr 78px; gap:10px;
+         align-items:center; font-size:12.5px; padding:3.5px 0; }
+  .cov .n { text-align:right; font-variant-numeric:tabular-nums; color:var(--mut); }
+  .cov .track { height:6px; border-radius:3px; background:var(--line); overflow:hidden; }
+  .cov .fill { height:100%; border-radius:3px; background:var(--accent); transition:width .3s; }
+  .cov .fill.done { background:var(--ok); }
+  .cov .todo { font-size:11px; color:var(--mut); text-align:right; }
+  .cov .todo.ok { color:var(--ok); }
+  .covhead { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px; }
+  .covhead b { font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:var(--mut); }
+  .covhead span { font-size:13px; font-variant-numeric:tabular-nums; }
+  .badge { display:inline-block; font-size:11px; font-weight:600; letter-spacing:0.06em;
+           text-transform:uppercase; padding:3px 9px; border-radius:20px; margin-bottom:10px; }
+  .badge.cross { background:color-mix(in srgb, var(--ok) 18%, transparent); color:var(--ok);
+                 border:1px solid color-mix(in srgb, var(--ok) 40%, transparent); }
+  .badge.same  { background:color-mix(in srgb, var(--warn) 18%, transparent); color:var(--warn);
+                 border:1px solid color-mix(in srgb, var(--warn) 40%, transparent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1><span class="rec"></span>Home Row Mod Tuner — Recorder</h1>
+  <p class="sub">Records key <em>down</em> and <em>up</em> timestamps only, in this page, in this tab. Nothing is sent anywhere. Type naturally — do not slow down or "be careful", the whole point is to capture how you actually type.</p>
+
+  <div class="modes" id="modes"></div>
+
+  <div class="card" id="taskCard">
+    <div class="row" id="wordsBar" style="margin-bottom:10px">
+      <button id="newWords">&#8635; New words</button>
+      <span class="hint" style="margin:0" id="wordsNote">Common English words, shuffled, with <code>;</code> and <code>:</code> so the whole home row gets exercised.</span>
+    </div>
+    <div id="passage" class="passage"></div>
+    <div id="chordBox" style="display:none">
+      <div class="hint" style="margin:0">Perform this gesture <b>5 times</b>, the way you would hold a real modifier. These are plain letters — no actual modifier keys involved.</div>
+      <div class="chord" id="chordText"></div>
+      <div><span class="badge" id="chordKind"></span></div>
+      <div class="row">
+        <button id="nextChord">Next gesture &rarr;</button>
+        <span class="hint" style="margin:0" id="chordProg"></span>
+      </div>
+    </div>
+    <textarea id="ta" placeholder="Click here and start typing..." spellcheck="false"></textarea>
+  </div>
+
+  <div class="card stats">
+    <div class="stat"><b id="sKeys">0</b><span>keystrokes</span></div>
+    <div class="stat"><b id="sWpm">0</b><span>wpm</span></div>
+    <div class="stat"><b id="sIki">–</b><span>median gap (ms)</span></div>
+    <div class="stat"><b id="sOver">0%</b><span>overlapping</span></div>
+    <div class="stat"><b id="sInv">0%</b><span>released out of order</span></div>
+  </div>
+
+  <div class="card">
+    <div class="covhead"><b>Coverage</b><span id="covTotal"></span></div>
+    <div id="coverage"></div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <button class="primary" id="dl">Download recording</button>
+      <button id="importBtn">Import recording&hellip;</button>
+      <input type="file" id="fileInput" accept="application/json,.json" style="display:none">
+      <button id="copy">Copy JSON</button>
+      <button id="clear">Clear</button>
+      <span class="hint" style="margin:0" id="saveHint"></span>
+    </div>
+    <p class="hint"><b>Released out of order</b> is the number that matters most: it is how often you release the previous key <em>after</em> the next one — the <code>d&darr; j&darr; j&uarr; d&uarr;</code> pattern that turns a home row mod into a misfire.</p>
+    <p class="hint">Work through <b>all six tabs</b> &mdash; the Coverage panel above tracks each one. A tab left at zero is a question the analysis cannot answer.</p>
+    <p class="hint"><b>Nothing is written to browser storage.</b> Sessions live in memory until you hit Download. To continue across several sittings, <b>Import</b> the file you previously downloaded, keep typing, then Download again &mdash; the new file contains everything. Re-importing the same file is safe; duplicate sessions are skipped. An asterisk on the Download button means you have unsaved keystrokes.</p>
+  </div>
+</div>
+
+<script>
+const WORDS = `the be of and a to in he have it that for they i with as not on she
+at by this we you do but from or which one would all will there say who make
+when can more if no man out other so what time up go about than into could
+state only new year some take come these know see use get like then first any
+work now may such give over think most even find day also after way many must
+look before great back through long where much should well people down own just
+because good each those feel seem how high too place little world very still
+nation hand old life tell write become here show house both between need mean
+call develop under last right move thing general school never same another
+begin while number part turn real leave might want point form off child few
+small since against ask late home interest large person end open public follow
+during present without again hold govern around possible head consider word
+program problem however lead system set order eye plan run keep face fact group
+play stand increase early course change help line
+job major project subject enjoy join judge object jump`.split(/\s+/);
+
+const BOTTOM_WORDS = `zero size zone dozen prize amazing realize organize recognize citizen
+puzzle freeze lazy crazy analyze magazine seize box six next text mix fix
+tax exact example expect explain experience index complex extra maximum
+express excuse can come could call change course child close check care
+case city cut cost clear count class catch carry center certain because
+company control cover create current school which much such each very have
+give love live over never every move save leave above value view seven
+several drive believe involve service available active receive make may
+must many most time some same name home mean member moment remember family
+number problem system common perform become not now new need know no night
+nothing nation be but by back been before big both book best bring between
+about man woman human summer minute band climb combine`.split(/\s+/);
+
+function randomWords(n, list, style) {
+  list = list || WORDS;
+  const pick = () => list[Math.floor(Math.random() * list.length)];
+  const out = [];
+  let capNext = false;
+  for (let i = 0; i < n; i++) {
+    let w = pick();
+    if (style) {
+      if (capNext) { w = w[0].toUpperCase() + w.slice(1); capNext = false; }
+      const r = Math.random();
+      if (style === "bottom") {             // exercise , . / and ? (shift+/)
+        if (r < 0.07 && i < n - 1) w += "/" + pick();
+        else if (r < 0.27) w += ",";
+        else if (r < 0.45) { w += Math.random() < 0.18 ? "?" : "."; capNext = true; }
+      } else {                              // exercise ; and : (shift+;)
+        if (r < 0.13) w += ";";
+        else if (r < 0.24) w += ":";
+        else if (r < 0.36) w += ",";
+        else if (r < 0.48) { w += "."; capNext = true; }
+      }
+    }
+    out.push(w);
+  }
+  const lines = [];
+  let cur = "";
+  for (const w of out) {
+    if ((cur + " " + w).trim().length > 68) { lines.push(cur.trim()); cur = w; }
+    else cur += " " + w;
+  }
+  if (cur.trim()) lines.push(cur.trim());
+  return lines.join("\n");
+}
+
+const PASSAGES = {
+  code: `import { useCallback, useEffect, useState } from "react";
+
+type Status = "idle" | "loading" | "error";
+
+interface Props<T> {
+  items: readonly T[];
+  onSelect?: (item: T) => void;
+}
+
+export function ItemList<T extends { id: string; label: string }>({
+  items,
+  onSelect,
+}: Props<T>) {
+  const [status, setStatus] = useState<Status>("idle");
+  const [query, setQuery] = useState("");
+
+  const handleClick = useCallback((item: T) => () => onSelect?.(item), [onSelect]);
+
+  useEffect(() => {
+    if (!query) return;
+    setStatus("loading");
+    fetch(\`/api/search?q=\${encodeURIComponent(query)}\`)
+      .then((res) => (res.ok ? res.json() : Promise.reject(res.status)))
+      .catch(() => setStatus("error"));
+  }, [query]);
+
+  const visible = items.filter((it) => it.label.includes(query));
+
+  return (
+    <ul className="item-list" data-status={status}>
+      {visible.map((item) => (
+        <li key={item.id} onClick={handleClick(item)}>
+          {item.label ?? "untitled"}
+        </li>
+      ))}
+    </ul>
+  );
+}`,
+  free: `Free typing — write whatever you like: an email, notes, a commit message, a Slack reply.
+This is the most valuable sample because it has real composing pauses, and pauses are exactly
+where home row mods misfire. Just start typing below and keep going for a few minutes.`
+};
+
+// QWERTY finger columns. A chord is only possible if the two keys use
+// DIFFERENT fingers, so same-finger pairs (d+c, f+v, k+i, l+o ...) are excluded.
+//   pinky A Q Z / ; P /      ring S W X / L O .
+//   middle D E C / K I ,     index F R V G T B / J U M H Y N
+const CHORDS = {
+  chords: [
+    ["Hold F", "tap J", "cross-hand"], ["Hold F", "tap K", "cross-hand"],
+    ["Hold D", "tap K", "cross-hand"], ["Hold J", "tap D", "cross-hand"],
+    ["Hold A", "tap ; (semicolon)", "cross-hand"],
+    ["Hold A", "tap C", "same-hand"], ["Hold A", "tap V", "same-hand"],
+    ["Hold S", "tap V", "same-hand"], ["Hold F", "tap X", "same-hand"],
+    ["Hold J", "tap O", "same-hand"]
+  ],
+  chords_bot: [
+    ["Hold V", "tap J", "cross-hand"], ["Hold C", "tap K", "cross-hand"],
+    ["Hold X", "tap L", "cross-hand"], ["Hold M", "tap D", "cross-hand"],
+    ["Hold . (period)", "tap C", "cross-hand"],
+    ["Hold Z", "tap D", "same-hand"], ["Hold X", "tap F", "same-hand"],
+    ["Hold C", "tap A", "same-hand"], ["Hold M", "tap L", "same-hand"],
+    ["Hold / (slash)", "tap J", "same-hand"]
+  ]
+};
+
+const TARGETS = { words: 2500, words_bot: 2500, code: 2500, free: 2000,
+                  chords: 250, chords_bot: 250 };
+const LABELS = { words: "Common words", words_bot: "Bottom-row words",
+                 code: "Code (TSX)", free: "Free typing",
+                 chords: "Chords: home row", chords_bot: "Chords: bottom row" };
+const GOAL = Object.values(TARGETS).reduce((a, b) => a + b, 0);
+
+let store = { sessions: [], imports: [] };
+let dirty = false;                       // unsaved keystrokes in memory
+let cur = null, mode = "words", chordIx = 0;
+
+// Nothing is written to browser storage. Recordings live in memory until you
+// download them, and come back via Import. The old localStorage version
+// rewrote the whole blob every 800ms - roughly 1.5 GB of disk writes an hour.
+addEventListener("beforeunload", e => {
+  if (!dirty) return;
+  e.preventDefault();
+  e.returnValue = "";
+});
+
+const $ = id => document.getElementById(id);
+const modesEl = $("modes");
+[["words","Common words"],["words_bot","Bottom-row words"],["code","Code (TSX)"],
+ ["free","Free typing"],["chords","Chords: home row"],["chords_bot","Chords: bottom row"]]
+  .forEach(([k,label]) => {
+    const b = document.createElement("button");
+    b.textContent = label; b.dataset.mode = k;
+    b.onclick = () => setMode(k);
+    modesEl.appendChild(b);
+  });
+
+function setMode(m) {
+  mode = m; chordIx = 0;
+  [...modesEl.children].forEach(b => b.classList.toggle("on", b.dataset.mode === m));
+  const isChord = m.startsWith("chords");
+  const isWords = m.startsWith("words");
+  $("chordBox").style.display = isChord ? "" : "none";
+  $("passage").style.display = isChord ? "none" : "";
+  $("wordsBar").style.display = isWords ? "" : "none";
+  $("wordsNote").textContent = m === "words_bot"
+    ? "Weighted toward z x c v b n m, with heavy , . / punctuation — the whole bottom row."
+    : "Common English words, shuffled, with ; and : punctuation — the whole home row.";
+  if (!isChord) $("passage").textContent = isWords ? randomWords(220, listFor(m), m === "words_bot" ? "bottom" : "home") : PASSAGES[m];
+  else renderChord();
+  $("ta").value = "";
+  cur = null;
+  $("ta").focus();
+}
+function listFor(m) { return m === "words_bot" ? BOTTOM_WORDS : WORDS; }
+function chordSet() { return CHORDS[mode] || CHORDS.chords; }
+function renderChord() {
+  const set = chordSet();
+  const c = set[chordIx];
+  $("chordText").textContent = c[0] + "  +  " + c[1];
+  const kind = $("chordKind");
+  kind.textContent = c[2];
+  kind.className = "badge " + (c[2] === "cross-hand" ? "cross" : "same");
+  $("chordProg").textContent = `gesture ${chordIx+1} of ${set.length}` +
+    ` \u00b7 ${set.filter(x => x[2] === "cross-hand").length} cross-hand,` +
+    ` ${set.filter(x => x[2] === "same-hand").length} same-hand`;
+}
+$("newWords").onclick = () => { $("passage").textContent = randomWords(220, listFor(mode), mode === "words_bot" ? "bottom" : "home"); $("ta").value = ""; cur = null; $("ta").focus(); };
+$("nextChord").onclick = () => { chordIx = (chordIx+1) % chordSet().length; renderChord(); $("ta").focus(); };
+
+function session() {
+  if (!cur) {
+    cur = { mode, started: new Date().toISOString(), events: [] };
+    store.sessions.push(cur);
+  }
+  return cur;
+}
+
+
+const ta = $("ta");
+ta.addEventListener("keydown", e => {
+  if (e.key === "Tab") e.preventDefault();
+  if (e.repeat) return;
+  session().events.push({ t: Math.round(e.timeStamp * 1000) / 1000, c: e.code, d: 1 });
+  dirty = true;
+}, true);
+ta.addEventListener("keyup", e => {
+  session().events.push({ t: Math.round(e.timeStamp * 1000) / 1000, c: e.code, d: 0 });
+}, true);
+
+// ---- live stats -------------------------------------------------------
+function pair(events) {
+  const open = {}, out = [];
+  for (const e of events) {
+    if (e.d) (open[e.c] ||= []).push(e.t);
+    else { const q = open[e.c]; if (q && q.length) out.push({ c: e.c, down: q.shift(), up: e.t }); }
+  }
+  return out.sort((a,b) => a.down - b.down);
+}
+const IDLE_MS = 3000;      // a gap longer than this is a pause, not typing
+let lastSig = "";
+
+function refresh(force) {
+  // Only recompute when something changed — this runs while the user types.
+  const sig = store.sessions.reduce((a, s) => a + s.events.length, 0) + "/" + dirty;
+  if (!force && sig === lastSig) return;
+  lastSig = sig;
+
+  let keys = 0, ikis = [], over = 0, inv = 0, pairs = 0, secs = 0;
+  const per = {};
+  for (const s of store.sessions) {
+    const p = pair(s.events);
+    keys += p.length;
+    per[s.mode] = (per[s.mode] || 0) + p.length;
+    // Chord drills are deliberately overlapping and out-of-order — that is what
+    // they test. Including them would inflate the natural-typing figures.
+    if (String(s.mode).startsWith("chords")) continue;
+    for (let i = 1; i < p.length; i++) {
+      const gap = p[i].down - p[i-1].down;
+      if (gap >= 0 && gap < IDLE_MS) { ikis.push(gap); secs += gap / 1000; }
+      pairs++;
+      if (p[i].down < p[i-1].up) { over++; if (p[i].up < p[i-1].up) inv++; }
+    }
+  }
+  ikis.sort((a,b) => a-b);
+  const med = ikis.length ? ikis[Math.floor(ikis.length/2)] : null;
+  $("sKeys").textContent = keys.toLocaleString();
+  $("sWpm").textContent = secs > 5 ? Math.round((keys/5) / (secs/60)) : 0;
+  $("sIki").textContent = med === null ? "–" : Math.round(med);
+  $("sOver").textContent = pairs ? (100*over/pairs).toFixed(1) + "%" : "0%";
+  $("sInv").textContent = pairs ? (100*inv/pairs).toFixed(2) + "%" : "0%";
+
+  $("coverage").innerHTML = Object.keys(TARGETS).map(k => {
+    const n = per[k] || 0, t = TARGETS[k], f = Math.min(1, n / t);
+    const done = n >= t;
+    return '<div class="cov"><span>' + LABELS[k] + '</span>' +
+      '<span class="n">' + n.toLocaleString() + '</span>' +
+      '<span class="track"><span class="fill' + (done ? ' done' : '') +
+        '" style="width:' + (f * 100).toFixed(0) + '%"></span></span>' +
+      '<span class="todo' + (done ? ' ok' : '') + '">' +
+        (done ? "done" : (t - n).toLocaleString() + " to go") + '</span></div>';
+  }).join("");
+  $("covTotal").textContent = keys.toLocaleString() + " / " + GOAL.toLocaleString();
+  $("dl").textContent = dirty ? "Download recording *" : "Download recording";
+}
+setInterval(refresh, 800);
+
+// ---- export -----------------------------------------------------------
+function payload() {
+  return JSON.stringify({ version: 1, app: "hrm-tuner",
+                          exported: new Date().toISOString(),
+                          ua: navigator.userAgent,
+                          imports: store.imports,   // provenance of merged files
+                          sessions: store.sessions }, null, 0);
+}
+$("dl").onclick = () => {
+  const blob = new Blob([payload()], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "typing-" + new Date().toISOString().slice(0,19).replace(/[:T]/g,"-") + ".json";
+  a.click();
+  dirty = false;
+  refresh();
+  $("saveHint").textContent = "Saved to Downloads.";
+};
+$("importBtn").onclick = () => $("fileInput").click();
+$("fileInput").onchange = async (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  try {
+    const data = JSON.parse(await f.text());
+    if (!data || !Array.isArray(data.sessions)) throw new Error("no 'sessions' array");
+    const key = s => [s.mode, s.started, (s.events || []).length].join("|");
+    const seen = new Set(store.sessions.map(key));
+    let added = 0, dupes = 0;
+    for (const s of data.sessions) {
+      if (!Array.isArray(s.events)) continue;
+      if (seen.has(key(s))) { dupes++; continue; }
+      seen.add(key(s));
+      store.sessions.push(s);
+      added += 1;
+    }
+    // carry the source file's provenance forward so nothing is lost on re-export
+    for (const prev of (data.imports || [])) {
+      if (!store.imports.some(x => x.file === prev.file && x.exported === prev.exported))
+        store.imports.push(prev);
+    }
+    if (added) store.imports.push({ file: f.name, exported: data.exported || null,
+                                    ua: data.ua || null, sessions: added });
+    cur = null;
+    refresh();
+    $("saveHint").textContent =
+      `Imported ${added} session${added === 1 ? "" : "s"}` +
+      (dupes ? `, skipped ${dupes} already present` : "") + ".";
+  } catch (err) {
+    $("saveHint").textContent = "Could not read that file — " + err.message;
+  }
+  e.target.value = "";
+};
+$("copy").onclick = async () => {
+  await navigator.clipboard.writeText(payload());
+  dirty = false;
+  refresh();
+  $("saveHint").textContent = "Copied to clipboard.";
+};
+$("clear").onclick = () => {
+  if (!confirm("Discard all sessions in memory? Anything not downloaded is lost.")) return;
+  store = { sessions: [], imports: [] }; cur = null; dirty = false; refresh();
+  $("saveHint").textContent = "Cleared.";
+};
+
+setMode("words");
+refresh();
+</script>
+</body>
+</html>

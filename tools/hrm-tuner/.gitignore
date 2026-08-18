@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+# recordings are keystroke logs — keep them out of git
+typing-*.json
