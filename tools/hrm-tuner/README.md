@@ -220,7 +220,24 @@ actual question — home row, bottom row, or neither:
   layer does, by construction.
 ```
 
-**→ [Full example report](example-report.md)** (all ten sections, 260 lines)
+**→ [Full example report](example-report.txt)** — all ten sections, 268 lines.
+
+It is a plain `.txt` rather than Markdown on purpose. The report is terminal
+output full of box-drawing characters, and wrapping it in a fenced code block
+means one stray backtick or one bad edit silently renders the whole thing as
+Markdown. A text file cannot be mis-rendered, and regenerating it is a plain
+redirect with nothing to parse:
+
+```sh
+python3 analyze.py ~/Downloads/typing-2026-08-18-16-17-10.json > example-report.txt
+```
+
+That report came from 10,771 keystrokes over 31 minutes across all six tabs —
+about 2,000 words equivalent — from a developer typing ~125 wpm on word lists
+and ~65 wpm on TypeScript. The recording itself is not committed: it is a
+keystroke log, and the free-typing tab contains whatever its author wrote.
+`tests/test_analyze.py` generates a deterministic synthetic one if you want
+something to run against.
 
 The `Holds in N/25` line says whether to believe the ranking: it re-scores the
 comparison across a wide range of volume assumptions and reports how many the

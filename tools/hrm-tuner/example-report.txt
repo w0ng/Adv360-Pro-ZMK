@@ -1,11 +1,3 @@
-# Example report
-
-The full output of `analyze.py` on a real recording, kept here so the README
-stays readable. Regenerate with:
-
-```sh
-python3 analyze.py ~/Downloads/typing-2026-08-18-16-17-10.json
-```
 ══════════════════════════════════════════════════════════════════════════
   HOME ROW MOD TUNER
   10,771 keystrokes · 4 typing tabs + 2 chord drills
@@ -274,4 +266,3 @@ python3 analyze.py ~/Downloads/typing-2026-08-18-16-17-10.json
 
   Drill down:  --row home | --row bottom | --grid | --compare
 ══════════════════════════════════════════════════════════════════════════
-```
