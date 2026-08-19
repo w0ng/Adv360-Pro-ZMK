@@ -1,4 +1,9 @@
 __pycache__/
 *.pyc
-# recordings are keystroke logs — keep them out of git
+
+# Recordings are keystroke logs: the typed text is reconstructable from them,
+# and the free-typing tab contains whatever you actually wrote. Never commit
+# one. Drop them in recordings/ and they stay local.
+recordings/*
+!recordings/README.md
 typing-*.json

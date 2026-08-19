@@ -179,8 +179,12 @@ Hit **Download recording** when done.
 ### 2. Analyze
 
 ```sh
-python3 analyze.py ~/Downloads/typing-2026-08-19-14-30-00.json
+python3 analyze.py recordings/typing-2026-08-19-14-30-00.json
 ```
+
+`recordings/` is gitignored. Keep them there rather than in `~/Downloads`:
+they are keystroke logs, the typed text is reconstructable from them, and the
+free-typing tab holds whatever you actually wrote.
 
 On Windows: `py -3 analyze.py %USERPROFILE%\Downloads\typing-....json`
 
