@@ -252,6 +252,22 @@ class Triggers(unittest.TestCase):
             self.assertNotIn(other, ON_BOARD)
             self.assertEqual(self._roll("KeyX", other)["triggers"], {other: 1})
 
+    def test_thumb_triggers_a_hold_by_default(self):
+        # THUMBS is in hold-trigger-key-positions, so space counts as
+        # opposite-hand for either side
+        self.assertEqual(self._roll("KeyX", "Space")["misfires"], 1)
+
+    def test_no_thumb_trigger_blocks_it(self):
+        prm = replace(STOCK, tapping_term=400, prior_idle=0,
+                      thumbs_trigger=False)
+        r = simulate([("code", [Press("KeyX", 0, 200), Press("Space", 40, 90)])],
+                     prm, set(BOTTOM_HRM))
+        self.assertEqual(r["misfires"], 0)
+        # a real opposite-hand key still triggers
+        r2 = simulate([("code", [Press("KeyX", 0, 200), Press("KeyJ", 40, 90)])],
+                      prm, set(BOTTOM_HRM))
+        self.assertEqual(r2["misfires"], 1)
+
     def test_same_hand_trigger_is_blocked_not_counted(self):
         r = self._roll("KeyX", "KeyG")          # both left hand
         self.assertEqual(r["misfires"], 0)

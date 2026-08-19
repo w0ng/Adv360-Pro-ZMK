@@ -7,6 +7,11 @@ Records your real keystroke timings, then replays them through a simulation of
 ZMK's hold-tap state machine to count how many letters would have turned into
 modifiers — and how many intentional modifiers would have turned into letters.
 
+If you are reading this because the keymap in this repo has a BRM layer and you
+want to know where its numbers came from, see
+**[DECISIONS.md](DECISIONS.md)** — every parameter, what it costs, what was
+rejected, and what to change first when something annoys you.
+
 ## Why
 
 Every home row mod guide tells you to pick timings and iterate on feel. That is

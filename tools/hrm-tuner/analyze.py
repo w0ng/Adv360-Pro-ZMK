@@ -104,6 +104,7 @@ class Params:
     prior_idle: float = 150.0
     hold_trigger_on_release: bool = True
     positional: bool = True          # hold-trigger-key-positions = opposite hand
+    thumbs_trigger: bool = True      # are THUMBS in hold-trigger-key-positions?
 
 
 @dataclass
@@ -166,7 +167,13 @@ def resolve(idx: int, presses: list[Press], prm: Params,
     evs.sort(key=lambda x: (x[0], 0 if x[1] == "up" else 1))
 
     for _t, kind, q in evs:
-        cross = (q.hand != p.hand) or q.hand == "T"
+        # A thumb counts as "opposite hand" for both sides, which is what puts
+        # THUMBS in hold-trigger-key-positions. Turning that off means a thumb
+        # can never complete a hold, so letter-then-space always stays a letter.
+        if q.hand == "T":
+            cross = prm.thumbs_trigger
+        else:
+            cross = q.hand != p.hand
         side = "cross" if cross else "same"
         allowed = cross if prm.positional else True
         if prm.hold_trigger_on_release:
@@ -1310,6 +1317,9 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--no-positional", action="store_true",
                     help="disable hold-trigger-key-positions")
     ap.add_argument("--no-trigger-on-release", action="store_true")
+    ap.add_argument("--no-thumb-trigger", action="store_true",
+                    help="drop THUMBS from hold-trigger-key-positions, so a "
+                         "thumb key can never complete a hold")
     ap.add_argument("--top", type=int, default=12, help="misfire examples to list")
     ap.add_argument("--grid", action="store_true",
                     help="joint sweep: false positives AND false negatives over "
@@ -1579,7 +1589,8 @@ def main() -> int:
                   quick_tap=args.quick_tap,
                   prior_idle=args.prior_idle,
                   hold_trigger_on_release=not args.no_trigger_on_release,
-                  positional=not args.no_positional)
+                  positional=not args.no_positional,
+                  thumbs_trigger=not args.no_thumb_trigger)
     drop = {m.strip() for m in args.exclude.split(",") if m.strip()}
 
     typing, chords = load_recording(args.recording, drop)

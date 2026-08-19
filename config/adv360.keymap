@@ -5,6 +5,20 @@
 #include <dt-bindings/zmk/stp.h>
 #include <dt-bindings/zmk/backlight.h>
 
+/**
+ * Key positions, for positional hold-tap. 76 keys, numbered left to right and
+ * top to bottom exactly as the bindings below are written.
+ *
+ * THUMBS is both thumb clusters: the inner middle-cluster keys on rows 3-5.
+ * A left-hand mod may only be held against KEYS_R + THUMBS, and vice versa,
+ * which is what stops same-hand rolls from turning into modifiers.
+ */
+#define KEYS_L  0  1  2  3  4  5  6 14 15 16 17 18 19 20 28 29 30 31 32 33 34 \
+               46 47 48 49 50 51 60 61 62 63 64
+#define KEYS_R  7  8  9 10 11 12 13 21 22 23 24 25 26 27 39 40 41 42 43 44 45 \
+               54 55 56 57 58 59 71 72 73 74 75
+#define THUMBS 35 36 37 38 52 53 65 66 67 68 69 70
+
 / {
     behaviors {
       #include "version.dtsi"
@@ -24,6 +38,56 @@
         #binding-cells = <0>;
         bindings = <&kp LC(A)>, <&kp LC(A)>;
         mods = <(MOD_LCTL|MOD_LSFT|MOD_LALT|MOD_LGUI|MOD_RCTL|MOD_RSFT|MOD_RALT|MOD_RGUI)>;
+      };
+
+      /**
+       * Bottom row mods: urob's timeless home row mods, moved down a row.
+       * The technique is still called home row mods; these are not on the
+       * home row, so everything here is named for where it actually sits.
+       *
+       * Timings come from tools/hrm-tuner run against a 10,771 keystroke
+       * recording of this keyboard's owner. See tools/hrm-tuner/example-report.txt.
+       *
+       *   tapping-term-ms        140  the searched optimum. Their typing holds
+       *                               sit at p95 127 ms and deliberate chord
+       *                               holds at p10 166 ms, so 140 falls in the
+       *                               gap between the two distributions. Raising
+       *                               it to 160 removes the last timeout
+       *                               misfires but loses more same-hand chords.
+       *   require-prior-idle-ms  220  covers 89% of their key-to-key gaps, so
+       *                               a mod only arms after a real pause. This
+       *                               is the only thing protecting a cross-hand
+       *                               roll; positional hold-tap covers same-hand.
+       *   quick-tap-ms           175  covers 86% of their same-key repeats, so
+       *                               doubles like 'll' stay letters.
+       *
+       * flavor = "balanced" fires the hold when another key is pressed AND
+       * released while this one is held. hold-trigger-on-release defers the
+       * positional check to that key's release, which is what allows same-hand
+       * modifier stacking.
+       */
+      brml: bottom_row_mod_left {
+        compatible = "zmk,behavior-hold-tap";
+        #binding-cells = <2>;
+        flavor = "balanced";
+        tapping-term-ms = <140>;
+        quick-tap-ms = <175>;
+        require-prior-idle-ms = <220>;
+        hold-trigger-key-positions = <KEYS_R THUMBS>;
+        hold-trigger-on-release;
+        bindings = <&kp>, <&kp>;
+      };
+
+      brmr: bottom_row_mod_right {
+        compatible = "zmk,behavior-hold-tap";
+        #binding-cells = <2>;
+        flavor = "balanced";
+        tapping-term-ms = <140>;
+        quick-tap-ms = <175>;
+        require-prior-idle-ms = <220>;
+        hold-trigger-key-positions = <KEYS_L THUMBS>;
+        hold-trigger-on-release;
+        bindings = <&kp>, <&kp>;
       };
     };
 
@@ -58,27 +122,28 @@
      * TAB   Q    W    E    R    T    VOL+                                         PREV  Y    U    I    O    P    \
      * CTRL  A    S    D    F    G    VOL-         LGUI  LALT  |  RALT  RGUI       NEXT  H    J    K    L    ;    '
      * SHFT  Z    X    C    V    B                       LCTL  |  RCTL                   N    M    ,    .    /    SHFT
-     * Util  `    ESC  ←    →                SPC   ESC   TMUX  |  TMUX  ENT   BSP        ↓    ↑    [    ]    MOD
+     * Util  `    CAPS ←    →                SPC   ESC   TMUX  |  TMUX  ENT   BSP        ↓    ↑    [    ]    MOD
      */
     default_layer {
       display-name = "Base";
       bindings = <
-        &kp EQUAL  &kp N1     &kp N2   &kp N3    &kp N4     &kp N5  &kp C_MUTE                                                                 &kp C_PP    &kp N6    &kp N7  &kp N8     &kp N9    &kp N0    &kp MINUS
-        &kp TAB    &kp Q      &kp W    &kp E     &kp R      &kp T   &kp C_VOL_UP                                                               &kp C_PREV  &kp Y     &kp U   &kp I      &kp O     &kp P     &kp BSLH
-        &kp LCTRL  &kp A      &kp S    &kp D     &kp F      &kp G   &kp C_VOL_DN               &kp LGUI  &kp LALT  &kp RALT  &kp RGUI          &kp C_NEXT  &kp H     &kp J   &kp K      &kp L     &kp SEMI  &kp SQT
-        &kp LSHFT  &kp Z      &kp X    &kp C     &kp V      &kp B                                    &kp LCTRL  &kp RCTRL                                  &kp N     &kp M   &kp COMMA  &kp DOT   &kp FSLH  &kp RSHFT
-        &mo 1      &kp GRAVE  &kp ESC  &kp LEFT  &kp RIGHT                        &kp SPACE  &kp ESC  &mo 3     &mo 3     &kp ENTER  &kp BSPC              &kp DOWN  &kp UP  &kp LBKT   &kp RBKT  &mo 2
+        &kp EQUAL  &kp N1     &kp N2    &kp N3    &kp N4     &kp N5  &kp C_MUTE                                                                 &kp C_PP    &kp N6    &kp N7  &kp N8     &kp N9    &kp N0    &kp MINUS
+        &kp TAB    &kp Q      &kp W     &kp E     &kp R      &kp T   &kp C_VOL_UP                                                               &kp C_PREV  &kp Y     &kp U   &kp I      &kp O     &kp P     &kp BSLH
+        &kp LCTRL  &kp A      &kp S     &kp D     &kp F      &kp G   &kp C_VOL_DN               &kp LGUI  &kp LALT  &kp RALT  &kp RGUI          &kp C_NEXT  &kp H     &kp J   &kp K      &kp L     &kp SEMI  &kp SQT
+        &kp LSHFT  &kp Z      &kp X     &kp C     &kp V      &kp B                                    &kp LCTRL  &kp RCTRL                                  &kp N     &kp M   &kp COMMA  &kp DOT   &kp FSLH  &kp RSHFT
+        &mo 1      &kp GRAVE  &kp CAPS  &kp LEFT  &kp RIGHT                        &kp SPACE  &kp ESC  &mo 3     &mo 3     &kp ENTER  &kp BSPC              &kp DOWN  &kp UP  &kp LBKT   &kp RBKT  &mo 2
       >;
     };
 
     /**
      * Layer 1: Util — F1-F12; wrt=⌘W/⌘R/⌘T; zxcvb=undo/cut/copy/paste/redo, a=select-all; esdf=arrows; ←/→=bspc/enter; jkl;=right mods
+     * VOL+ toggles the BRM layer (layer 4).
      */
     util {
       display-name = "Util";
       bindings = <
         &kp F1  &kp F2     &kp F3     &kp F4     &kp F5     &kp F6         &trans                                                  &trans  &kp F7  &kp F8     &kp F9    &kp F10   &kp F11    &kp F12
-        &trans  &trans     &kp LG(W)  &kp UP     &kp LG(R)  &kp LG(T)      &trans                                                  &trans  &trans  &trans     &trans    &trans    &trans     &trans
+        &trans  &trans     &kp LG(W)  &kp UP     &kp LG(R)  &kp LG(T)      &tog 4                                                  &trans  &trans  &trans     &trans    &trans    &trans     &trans
         &trans  &kp LG(A)  &kp LEFT   &kp DOWN   &kp RIGHT  &trans         &trans          &trans  &trans  &trans  &trans          &trans  &trans  &kp RSHFT  &kp RGUI  &kp RALT  &kp RCTRL  &trans
         &trans  &kp LG(Z)  &kp LG(X)  &kp LG(C)  &kp LG(V)  &kp LG(LS(Z))                          &trans  &trans                          &trans  &trans     &trans    &trans    &trans     &trans
         &trans  &trans     &trans     &kp BSPC   &kp ENTER                         &trans  &trans  &trans  &trans  &trans  &trans          &trans  &trans     &trans    &trans    &trans
@@ -112,6 +177,40 @@
         &trans       &tmux A      &tmux S    &tmux D     &tmux F      &tmux G   &trans            &trans  &trans  &trans  &trans            &trans  &tmux H     &tmux J   &tmux K      &tmux L     &tmux SEMI  &tmux SQT
         &trans       &tmux Z      &tmux X    &tmux C     &tmux V      &tmux B                            &trans  &trans                             &tmux N     &tmux M   &tmux COMMA  &tmux DOT   &tmux FSLH  &trans
         &trans       &tmux GRAVE  &tmux ESC  &tmux LEFT  &tmux RIGHT        &tmux SPACE  &tmux ESC  &trans  &trans  &tmux ENTER  &tmux BSPC         &tmux DOWN  &tmux UP  &tmux LBKT   &tmux RBKT  &trans
+      >;
+    };
+
+    /**
+     * Layer 4: BRM — bottom row mods. An experiment. Toggle with Util + VOL+.
+     *
+     * Everything is transparent, so this layer IS the base layer plus one
+     * change: the bottom row alphas become hold-taps. Keeping it transparent
+     * rather than copying the bindings means it tracks any future edit to the
+     * base layer for free, and lets Util + VOL+ toggle back off (VOL+ falls
+     * through to the Util layer's &tog 4 while Util is held).
+     *
+     * Mods run SCAG outward from the index finger, mirrored:
+     *
+     *   ...   Z      X      C      V     B                N   M      ,      .      /     ...
+     *         LSHFT  LCTRL  LALT   LGUI                       RGUI   RALT   RCTRL  RSHFT
+     *
+     * Two other keys move on this layer only:
+     *   pos 28  LCTRL -> ESC     first column, below TAB, above LSHFT
+     *   pos 66  ESC   -> LSHFT   left thumb
+     * The base layer keeps both as they were.
+     *
+     * Bottom row rather than home row because the recording showed home row
+     * misfiring 3.7 per 1000 presses against the bottom row's 1.6, driven
+     * almost entirely by ';' and 'l'. Thumb cluster deliberately untouched.
+     */
+    brm_layer {
+      display-name = "BRM";
+      bindings = <
+        &trans   &trans         &trans         &trans        &trans        &trans  &trans                                                                              &trans  &trans  &trans        &trans            &trans           &trans            &trans
+        &trans   &trans         &trans         &trans        &trans        &trans  &trans                                                                              &trans  &trans  &trans        &trans            &trans           &trans            &trans
+        &kp ESC  &trans         &trans         &trans        &trans        &trans  &trans                 &trans     &trans     &trans     &trans                      &trans  &trans  &trans        &trans            &trans           &trans            &trans
+        &trans   &brml LSHFT Z  &brml LCTRL X  &brml LALT C  &brml LGUI V  &trans                                    &trans     &trans                                         &trans  &brmr RGUI M  &brmr RALT COMMA  &brmr RCTRL DOT  &brmr RSHFT FSLH  &trans
+        &trans   &trans         &trans         &trans        &trans                            &trans     &kp LSHFT  &trans     &trans     &trans     &trans                   &trans  &trans        &trans            &trans           &trans
       >;
     };
   };
