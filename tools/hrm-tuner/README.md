@@ -360,13 +360,99 @@ fabricate adjacencies across the boundary and corrupt every count.
 Watch the raw `n`, not just the rate. A `0.0` built on two mod presses means
 nothing — see the sample-size caveat below.
 
+## False positive vs false negative
+
+Two ways a dual-role key can betray you. They pull in opposite directions, which
+is why fixing one usually worsens the other.
+
+- **False positive** — you meant a letter, you got a modifier.
+- **False negative** — you meant a modifier, you got a letter.
+
+Every example below uses a bottom-row layout where `x` carries Left Control, at
+`tapping-term-ms 140`, `require-prior-idle-ms 220`, `flavor = "balanced"`,
+positional hold-tap on, `hold-trigger-on-release`. Times are ms from the `x`
+press.
+
+### False positive, cross-hand — the one that ruins home row mods
+
+You type `xy` after a pause. `y` is on the other hand.
+
+```
+x↓ +0     y↓ +40     y↑ +80     x↑ +120
+                     ^^^^^^ y finished while x was still down
+```
+
+`y` is opposite-hand, so `hold-trigger-key-positions` permits it, and balanced
+flavor fires the hold as soon as another key is pressed **and** released inside
+the hold. You get **`Ctrl+Y`** instead of `xy`.
+
+Nothing about this is a timing accident — it is the documented behaviour. The
+only thing that prevents it is `require-prior-idle-ms`: had you typed anything
+within 220 ms before `x`, it would have resolved as a tap immediately and never
+armed. That is why this one parameter matters more than the other two together.
+
+### False positive, same-hand — cannot happen
+
+Same shape, but `g` is on the same hand as `x`.
+
+```
+x↓ +0     g↓ +40     g↑ +80     x↑ +120
+```
+
+`g` is not in `hold-trigger-key-positions`, so at its release the positional
+check forces `x` to resolve as a **tap**. You get `xg`, correctly.
+
+This is why the report always shows `same-hand roll  0`. A nonzero number there
+means positional hold-tap is switched off (`--no-positional`) — a configuration
+error, not a typing problem.
+
+### False negative, cross-hand — you let go too early
+
+You want `Ctrl+J`. You hold `x` and tap `j`, but release `x` first.
+
+```
+x↓ +0     j↓ +40     x↑ +100     j↑ +140
+                     ^^^^^^ x released before j
+```
+
+At +100 nothing has resolved the hold: `j` has not been released yet, and the
+140 ms tapping term has not expired. The hold-tap gives up and taps. You get
+`xj` instead of `Ctrl+J`.
+
+Holding roughly 40 ms longer fixes it — the timer fires at +140 and the hold
+wins regardless of release order. This is what the chord drill measures, and why
+a *low* tapping term helps here: it beats your release.
+
+### False negative, same-hand — needs a deliberate pre-hold
+
+You want `Ctrl+G`, both keys on the left hand.
+
+```
+x↓ +0     g↓ +40      g↑ +80      x↑ +120      ->  xg       positional forced a tap
+x↓ +0     g↓ +160     g↑ +200     x↑ +240      ->  Ctrl+G   term expired at +140
+```
+
+Same-hand chords can **only** fire by holding past `tapping-term-ms` before the
+other key is released. That is `hold-trigger-key-positions` doing its job, not a
+bug — it is the same rule that makes same-hand false positives impossible. You
+cannot have one without the other.
+
+### The trade-off in one line
+
+Lowering `tapping-term-ms` fixes cross-hand false negatives and creates timeout
+false positives. Raising it does the reverse. There is no value that removes
+both, which is why the report scores them together as mistakes per day rather
+than optimising either alone.
+
 ## Reading the output
 
 Watch the code passage separately from the prose one. Symbol-dense TSX has a
 very different roll profile than English, and `Semicolon` in particular is a
 right-pinky home row key that in TypeScript is almost always followed by a
-cross-hand key (space or newline). If it dominates your misfire list, drop the
-mod on `;` and keep the other seven.
+cross-hand key (space or newline), so it tends to dominate the misfire list.
+Treat that as a reason to prefer the bottom row, not as a licence to retire the
+key — see DECISIONS.md on why dropping individual mods reads well in the data
+and badly on a keyboard.
 
 **`released OUT OF ORDER`** — how often you release the previous key *after* the
 next one. This is the raw physical ceiling on how often a home row mod can
