@@ -33,6 +33,28 @@
        * Without this, holding Shift turns the prefix into C-S-a and tmux never
        * sees it.
        */
+      /**
+       * Tmux layer on a tap-hold. Same timings as the mods, but with NO
+       * positional guard: the tmux layer has to reach keys on both hands
+       * (C-a c is same-hand from 'a'), and hold-trigger-key-positions would
+       * force those into taps.
+       *
+       * That makes require-prior-idle-ms the only protection, so put this on
+       * keys that are quiet in your own data. From the 2026-08-18 recording:
+       * 'a' and 'z' misfired 0 times, ';' misfired 3 times per 157 presses
+       * (mostly '; ' at end of statement, which would send C-a space), and
+       * '/' once per 79. See tools/hrm-tuner/DECISIONS.md.
+       */
+      ltt: layer_tap_tmux {
+        compatible = "zmk,behavior-hold-tap";
+        #binding-cells = <2>;
+        flavor = "balanced";
+        tapping-term-ms = <140>;
+        quick-tap-ms = <175>;
+        require-prior-idle-ms = <220>;
+        bindings = <&mo>, <&kp>;
+      };
+
       tmux_prefix: tmux_prefix {
         compatible = "zmk,behavior-mod-morph";
         #binding-cells = <0>;
@@ -41,9 +63,10 @@
       };
 
       /**
-       * Bottom row mods: urob's timeless home row mods, moved down a row.
-       * The technique is still called home row mods; these are not on the
-       * home row, so everything here is named for where it actually sits.
+       * urob's timeless home row mods. "Home row mods" is the name of the
+       * technique, not a claim about the row: the positional guard is
+       * "opposite hand plus thumbs" and says nothing about placement, so this
+       * one pair of behaviours serves both the HRM and BRM layers.
        *
        * Timings come from tools/hrm-tuner run against a 10,771 keystroke
        * recording of this keyboard's owner. See tools/hrm-tuner/example-report.txt.
@@ -66,7 +89,7 @@
        * positional check to that key's release, which is what allows same-hand
        * modifier stacking.
        */
-      brml: bottom_row_mod_left {
+      hml: home_row_mod_left {
         compatible = "zmk,behavior-hold-tap";
         #binding-cells = <2>;
         flavor = "balanced";
@@ -78,7 +101,7 @@
         bindings = <&kp>, <&kp>;
       };
 
-      brmr: bottom_row_mod_right {
+      hmr: home_row_mod_right {
         compatible = "zmk,behavior-hold-tap";
         #binding-cells = <2>;
         flavor = "balanced";
@@ -137,14 +160,18 @@
 
     /**
      * Layer 1: Util — F1-F12; wrt=⌘W/⌘R/⌘T; zxcvb=undo/cut/copy/paste/redo, a=select-all; esdf=arrows; ←/→=bspc/enter; jkl;=right mods
-     * VOL+ toggles the BRM layer (layer 4).
+     * MUTE / VOL+ / VOL- switch between the base layer, BRM (4) and HRM (5).
+     * These use &to rather than &tog: &to activates one layer and deactivates
+     * every other non-default layer, so exactly one of the three is ever live.
+     * &tog would let BRM and HRM be on at the same time, which would put mods
+     * on both rows at once.
      */
     util {
       display-name = "Util";
       bindings = <
-        &kp F1  &kp F2     &kp F3     &kp F4     &kp F5     &kp F6         &trans                                                  &trans  &kp F7  &kp F8     &kp F9    &kp F10   &kp F11    &kp F12
-        &trans  &trans     &kp LG(W)  &kp UP     &kp LG(R)  &kp LG(T)      &tog 4                                                  &trans  &trans  &trans     &trans    &trans    &trans     &trans
-        &trans  &kp LG(A)  &kp LEFT   &kp DOWN   &kp RIGHT  &trans         &trans          &trans  &trans  &trans  &trans          &trans  &trans  &kp RSHFT  &kp RGUI  &kp RALT  &kp RCTRL  &trans
+        &kp F1  &kp F2     &kp F3     &kp F4     &kp F5     &kp F6         &to 0                                                  &trans  &kp F7  &kp F8     &kp F9    &kp F10   &kp F11    &kp F12
+        &trans  &trans     &kp LG(W)  &kp UP     &kp LG(R)  &kp LG(T)      &to 4                                                  &trans  &trans  &trans     &trans    &trans    &trans     &trans
+        &trans  &kp LG(A)  &kp LEFT   &kp DOWN   &kp RIGHT  &trans         &to 5          &trans  &trans  &trans  &trans          &trans  &trans  &kp RSHFT  &kp RGUI  &kp RALT  &kp RCTRL  &trans
         &trans  &kp LG(Z)  &kp LG(X)  &kp LG(C)  &kp LG(V)  &kp LG(LS(Z))                          &trans  &trans                          &trans  &trans     &trans    &trans    &trans     &trans
         &trans  &trans     &trans     &kp BSPC   &kp ENTER                         &trans  &trans  &trans  &trans  &trans  &trans          &trans  &trans     &trans    &trans    &trans
       >;
@@ -181,23 +208,17 @@
     };
 
     /**
-     * Layer 4: BRM — bottom row mods. An experiment. Toggle with Util + VOL+.
+     * Layer 4: BRM — bottom row mods. An experiment. Util + VOL+ selects it.
      *
      * Everything is transparent, so this layer IS the base layer plus one
      * change: the bottom row alphas become hold-taps. Keeping it transparent
      * rather than copying the bindings means it tracks any future edit to the
-     * base layer for free, and lets Util + VOL+ toggle back off (VOL+ falls
-     * through to the Util layer's &tog 4 while Util is held).
+     * base layer for free, and leaves Util reachable so you can switch away.
      *
      * Mods run SCAG outward from the index finger, mirrored:
      *
      *   ...   Z      X      C      V     B                N   M      ,      .      /     ...
      *         LSHFT  LCTRL  LALT   LGUI                       RGUI   RALT   RCTRL  RSHFT
-     *
-     * Two other keys move on this layer only:
-     *   pos 28  LCTRL -> ESC     first column, below TAB, above LSHFT
-     *   pos 66  ESC   -> LSHFT   left thumb
-     * The base layer keeps both as they were.
      *
      * Bottom row rather than home row because the recording showed home row
      * misfiring 3.7 per 1000 presses against the bottom row's 1.6, driven
@@ -206,11 +227,37 @@
     brm_layer {
       display-name = "BRM";
       bindings = <
-        &trans   &trans         &trans         &trans        &trans        &trans  &trans                                                                              &trans  &trans  &trans        &trans            &trans           &trans            &trans
-        &trans   &trans         &trans         &trans        &trans        &trans  &trans                                                                              &trans  &trans  &trans        &trans            &trans           &trans            &trans
-        &kp ESC  &trans         &trans         &trans        &trans        &trans  &trans                 &trans     &trans     &trans     &trans                      &trans  &trans  &trans        &trans            &trans           &trans            &trans
-        &trans   &brml LSHFT Z  &brml LCTRL X  &brml LALT C  &brml LGUI V  &trans                                    &trans     &trans                                         &trans  &brmr RGUI M  &brmr RALT COMMA  &brmr RCTRL DOT  &brmr RSHFT FSLH  &trans
-        &trans   &trans         &trans         &trans        &trans                            &trans     &kp LSHFT  &trans     &trans     &trans     &trans                   &trans  &trans        &trans            &trans           &trans
+        &trans  &trans        &trans        &trans       &trans       &trans  &trans                                                            &trans  &trans  &trans       &trans           &trans          &trans           &trans
+        &trans  &trans        &trans        &trans       &trans       &trans  &trans                                                            &trans  &trans  &trans       &trans           &trans          &trans           &trans
+        &trans  &ltt 3 A      &trans        &trans       &trans       &trans  &trans              &trans  &trans  &trans  &trans                &trans  &trans  &trans       &trans           &trans          &ltt 3 SEMI      &trans
+        &trans  &hml LSHFT Z  &hml LCTRL X  &hml LALT C  &hml LGUI V  &trans                              &trans  &trans                                &trans  &hmr RGUI M  &hmr RALT COMMA  &hmr RCTRL DOT  &hmr RSHFT FSLH  &trans
+        &trans  &trans        &trans        &trans       &trans                           &trans  &trans  &trans  &trans  &trans  &trans                &trans  &trans       &trans           &trans          &trans
+      >;
+    };
+
+    /**
+     * Layer 5: HRM — home row mods. The same experiment as BRM, one row up,
+     * so the two can be A/B tested against each other. Util + VOL- selects it.
+     *
+     * Same SCAG order, mirrored, outward from the index finger:
+     *
+     *   ...   A      S      D      F     G                H   J      K      L      ;     ...
+     *         LSHFT  LCTRL  LALT   LGUI                       RGUI   RALT   RCTRL  RSHFT
+     *
+     * The recording says this is the worse of the two: 3.7 misfires per 1000
+     * presses against the bottom row's 1.6, concentrated in ';' and 'l', and
+     * 18.6% of keystrokes land on a mod key here versus 12.4%. It exists to
+     * confirm that on real hardware rather than in simulation.
+     *
+     */
+    hrm_layer {
+      display-name = "HRM";
+      bindings = <
+        &trans  &trans        &trans        &trans       &trans       &trans  &trans                                                            &trans  &trans  &trans       &trans       &trans        &trans           &trans
+        &trans  &trans        &trans        &trans       &trans       &trans  &trans                                                            &trans  &trans  &trans       &trans       &trans        &trans           &trans
+        &trans  &hml LSHFT A  &hml LCTRL S  &hml LALT D  &hml LGUI F  &trans  &trans              &trans  &trans  &trans  &trans                &trans  &trans  &hmr RGUI J  &hmr RALT K  &hmr RCTRL L  &hmr RSHFT SEMI  &trans
+        &trans  &ltt 3 Z      &trans        &trans       &trans       &trans                              &trans  &trans                                &trans  &trans       &trans       &trans        &ltt 3 FSLH      &trans
+        &trans  &trans        &trans        &trans       &trans                           &trans  &trans  &trans  &trans  &trans  &trans                &trans  &trans       &trans       &trans        &trans
       >;
     };
   };

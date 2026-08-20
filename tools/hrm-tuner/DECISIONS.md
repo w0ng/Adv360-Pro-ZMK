@@ -1,8 +1,8 @@
 # Bottom row mods: why these numbers
 
-A record of the 2026-08-18 investigation that produced the BRM layer in
-`config/adv360.keymap`. Written so that changing a number later is an informed
-decision rather than a guess.
+A record of the 2026-08-18 investigation that produced the BRM and HRM layers
+in `config/adv360.keymap`. Written so that changing a number later is an
+informed decision rather than a guess.
 
 ## The problem
 
@@ -36,9 +36,53 @@ attempts most likely fell apart.
 modifier commands a day against a target of 2, and no dual-role setup reaches
 zero. Only mods on a held layer do, by construction.
 
-The BRM layer exists because trying it anyway was a deliberate choice, on a
-*toggled* layer so the base layer is untouched. That is the important safety
-property: if this is annoying, stop toggling it on.
+Both mod layers exist because trying anyway was a deliberate choice, on
+*separate switchable layers* so the base layer is untouched. That is the
+important safety property: if this is annoying, switch back to base.
+
+## The A/B setup
+
+Two layers, mods in the same SCAG order mirrored outward from the index:
+
+| layer | keys | mods |
+| --- | --- | --- |
+| BRM (4) | `z x c v` / `m , . /` | LSHFT LCTRL LALT LGUI / RGUI RALT RCTRL RSHFT |
+| HRM (5) | `a s d f` / `j k l ;` | same |
+
+Hold Util and press **MUTE** for base, **VOL+** for BRM, **VOL−** for HRM.
+
+Each layer also puts the tmux layer on a tap-hold, on whichever outer keys the
+mods are not using: `a` and `;` on BRM, `z` and `/` on HRM. That behaviour
+(`ltt`) has **no positional guard**, because a layer key has to reach both hands
+— `C-a c` is same-hand from `a` — so `require-prior-idle-ms` is its only
+protection. Measured misfires per key at this config, positional off:
+
+| key | presses | misfires |
+| --- | --- | --- |
+| `a` | 518 | 0 |
+| `z` | 55 | 0 |
+| `/` | 79 | 1 (12.7 per 1000) |
+| `;` | 157 | **3 (19.1 per 1000)** |
+
+`;` was the single worst key in the whole recording, and two of its three
+misfires were `; ` at end of statement — which as a layer key sends `C-a space`,
+tmux's next-layout. If tmux fires while you are typing TypeScript, that is the
+one to move first.
+
+These use `&to`, not `&tog`. `&to` activates one layer and deactivates every
+other non-default layer, so exactly one of the three is ever live. With `&tog`
+both mod layers could be on at once, putting mods on both rows simultaneously —
+16 dual-role keys and ~31% of keystrokes armed. The cost of `&to` is that it is
+not a toggle, so returning to base needs its own key; MUTE is it.
+
+Both layers are transparent everywhere except their eight mods, which is what
+lets them track future edits to the base layer and keeps Util reachable from
+either. One pair of behaviours (`hml`/`hmr`) serves both: the positional guard
+is "opposite hand plus thumbs" and says nothing about which row a key is on.
+
+HRM is expected to be the worse of the two — 3.7 misfires per 1000 presses
+against BRM's 1.6, and 18.6% keystroke exposure against 12.4%. It exists to
+confirm that on hardware rather than in simulation.
 
 ## Bottom row, not home row
 
@@ -132,6 +176,8 @@ python3 analyze.py <recording>.json --row bottom --grid   # sweep it yourself
 | intentional chords silently type letters | lower `tapping-term-ms`, or drive mods cross-hand |
 | none of it works | mods on a held layer: zero by construction, no timings |
 
-To abandon the experiment entirely: delete `brm_layer`, the `brml`/`brmr`
-behaviours and the `KEYS_L`/`KEYS_R`/`THUMBS` defines, and put `&trans` back at
-Util position 20. The base layer never depended on any of it.
+To abandon the experiment entirely: delete `brm_layer` and `hrm_layer`, the
+`hml`/`hmr` behaviours and the `KEYS_L`/`KEYS_R`/`THUMBS` defines, and put
+`&trans` back at Util positions 6, 20 and 34. The base layer never depended on
+any of it — the only base-layer change from all of this was the ESC next to
+grave becoming CAPS, since two Escape keys was one too many.
