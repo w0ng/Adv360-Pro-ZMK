@@ -251,6 +251,20 @@ const GOAL = Object.values(TARGETS).reduce((a, b) => a + b, 0);
 
 let store = { sessions: [], imports: [] };
 let dirty = false;                       // unsaved keystrokes in memory
+
+// Cmd+W and Cmd+Q are reserved by the browser and cannot be prevented, so a
+// misfire can still take the tab down. Keep a backup for that case only:
+// written when the page is hidden or closed, and once a minute while dirty —
+// a couple of writes a minute, not the 75/s the old localStorage version did.
+const CRASH_KEY = "hrmTunerCrash.v1";
+function backup() {
+  if (!dirty) return;
+  try { localStorage.setItem(CRASH_KEY, JSON.stringify(store)); } catch (e) {}
+}
+addEventListener("visibilitychange", () => { if (document.hidden) backup(); });
+addEventListener("pagehide", backup);
+addEventListener("blur", backup);
+setInterval(backup, 60000);
 let cur = null, mode = "words", chordIx = 0;
 
 // Nothing is written to browser storage. Recordings live in memory until you
@@ -318,6 +332,12 @@ function session() {
 const ta = $("ta");
 ta.addEventListener("keydown", e => {
   if (e.key === "Tab") e.preventDefault();
+  // With mods live, a misfire produces a genuine chord: Cmd+S opens Save,
+  // Cmd+A selects the page, Cmd+Z undoes. Swallow anything carrying a real
+  // modifier so the browser and OS never act on it — but still record it,
+  // because that event IS the misfire we are here to measure. Plain Shift
+  // passes through: capitals are legitimate typing.
+  if (e.ctrlKey || e.altKey || e.metaKey) e.preventDefault();
   if (e.repeat) return;
   session().events.push({ t: Math.round(e.timeStamp * 1000) / 1000, c: e.code, d: 1 });
   dirty = true;
@@ -398,6 +418,7 @@ $("dl").onclick = () => {
   a.download = "typing-" + new Date().toISOString().slice(0,19).replace(/[:T]/g,"-") + ".json";
   a.click();
   dirty = false;
+  localStorage.removeItem(CRASH_KEY);
   refresh();
   $("saveHint").textContent = "Saved to Downloads.";
 };
@@ -446,6 +467,22 @@ $("clear").onclick = () => {
   store = { sessions: [], imports: [] }; cur = null; dirty = false; refresh();
   $("saveHint").textContent = "Cleared.";
 };
+
+(function restoreCrashBackup() {
+  const raw = localStorage.getItem(CRASH_KEY);
+  if (!raw) return;
+  let data;
+  try { data = JSON.parse(raw); } catch (e) { localStorage.removeItem(CRASH_KEY); return; }
+  const n = (data.sessions || []).reduce((a, s) => a + s.events.length, 0) / 2;
+  if (!n) { localStorage.removeItem(CRASH_KEY); return; }
+  if (confirm(`A previous session ended without being downloaded — about ` +
+              `${Math.round(n).toLocaleString()} keystrokes. Restore it?`)) {
+    store = data;
+    dirty = true;
+    $("saveHint").textContent = "Recovered. Download it before you carry on.";
+  }
+  localStorage.removeItem(CRASH_KEY);
+})();
 
 setMode("words");
 refresh();

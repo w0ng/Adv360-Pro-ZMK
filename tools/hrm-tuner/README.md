@@ -154,6 +154,18 @@ suppresses almost everything and the misfire count comes out flatteringly low.
 Read that mode for the *release-order* number, not the misfire number. The
 misfire number comes from free typing and code.
 
+**With mods live, the recorder swallows real modifier chords.** Anything
+carrying Ctrl, Alt or Cmd is `preventDefault`ed, so a misfire cannot fire
+`Cmd+S`, `Cmd+A` or `Cmd+Z` at your browser — but it is still recorded, because
+that event is exactly the misfire being measured. Plain Shift passes through,
+since capitals are legitimate typing.
+
+Two shortcuts are reserved by the browser and cannot be blocked: **`Cmd+W` and
+`Cmd+Q`**. If a misfire produces one, the tab or the browser goes away. For that
+case only, the page keeps a backup in `localStorage` — written when the page is
+hidden or closed, and once a minute while there are unsaved keystrokes — and
+offers to restore it next time you open the recorder. Downloading clears it.
+
 Type **normally**. Do not slow down, do not be careful, do not try to avoid
 rolls. Careful typing produces a flattering recording and a useless answer.
 
