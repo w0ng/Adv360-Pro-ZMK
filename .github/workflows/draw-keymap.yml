@@ -1,0 +1,67 @@
+name: Draw Keymap
+
+on:
+  push:
+    branches:
+      - V3.0
+    paths:
+      - 'config/adv360.keymap'
+      - 'config/info.json'
+      - 'keymap_drawer.config.yaml'
+      - '.github/workflows/draw-keymap.yml'
+  workflow_dispatch:
+
+jobs:
+  # keymap-drawer copies svg_extra_style into the SVG verbatim, so a bare `&`
+  # or `<` in the stylesheet silently produces invalid XML — the diagram then
+  # fails to render on GitHub while the workflow still reports success. Catch
+  # it before the draw rather than in the README.
+  check-style:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reject characters that would make the SVG invalid XML
+        run: |
+          python3 - <<'PY'
+          import re, sys
+
+          text = open("keymap_drawer.config.yaml").read()
+          block = re.search(r"^  svg_extra_style: \|\n((?:    .*\n|\n)*)", text, re.M)
+          if not block:
+              sys.exit("could not find svg_extra_style block")
+
+          bad = [(i, line) for i, line in enumerate(block.group(1).splitlines(), 1)
+                 if "&" in line or "<" in line]
+          for i, line in bad:
+              print(f"  line {i}: {line.strip()}")
+          sys.exit(f"{len(bad)} line(s) in svg_extra_style contain a bare & or <, "
+                   "which would make the SVG invalid XML") if bad else print("stylesheet ok")
+          PY
+
+  draw:
+    needs: check-style
+    uses: caksoylar/keymap-drawer/.github/workflows/draw-zmk.yml@main
+    permissions:
+      contents: write
+    with:
+      # Only the real keymap. config/adv360_left.keymap and adv360_right.keymap
+      # are two-line shims that #include this one, so the default glob
+      # 'config/*.keymap' would render the same diagram three times.
+      keymap_patterns: "config/adv360.keymap"
+
+      config_path: "keymap_drawer.config.yaml"
+      output_folder: "assets"
+
+      # config/info.json is the physical layout Kinesis ships for the keymap
+      # editor: 76 keys with x/y/w coordinates, in the same order as the
+      # bindings. Pointing at it keeps the drawing pinned to this repo rather
+      # than to keymap-drawer's bundled copy of the board.
+      draw_args: "adv360:'-j config/info.json'"
+
+      # Skip `west update`. The only project in config/west.yml is the Kinesis
+      # ZMK fork, which this workflow filters out anyway, and nothing in the
+      # keymap needs a module to parse.
+      west_config_path: ""
+
+      commit_message: "chore: redraw keymap diagram"
+      fail_on_error: true

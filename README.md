@@ -1,5 +1,37 @@
 # Kinesis Advantage 360 Pro ZMK Config
 
+## Keymap
+
+![Keymap](assets/adv360.svg)
+
+Redrawn automatically by [keymap-drawer](https://github.com/caksoylar/keymap-drawer)
+on every push that touches `config/adv360.keymap` — see
+[`.github/workflows/draw-keymap.yml`](.github/workflows/draw-keymap.yml).
+
+Styling lives in [`keymap_drawer.config.yaml`](keymap_drawer.config.yaml):
+[Gruvbox](https://github.com/morhetz/gruvbox) dark in
+[Maple Mono](https://github.com/subframe7536/maple-font), with orange hold
+legends on the eight BRM/HRM mods, blue on the two tmux layer-taps, and aqua on
+layer switches. The palette is a block of CSS variables at the top of
+`svg_extra_style`; a light alternative sits commented beside it.
+
+The font is embedded in the SVG as a base64 subset (~19 KB), because an SVG
+served through GitHub's image proxy cannot fetch anything external. Regenerate
+it — or bump the font version — with:
+
+```shell
+./bin/embed-keymap-font.sh
+```
+
+To preview a keymap change before pushing:
+
+```shell
+uvx --from keymap-drawer keymap -c keymap_drawer.config.yaml \
+  parse -z config/adv360.keymap > assets/adv360.yaml
+uvx --from keymap-drawer keymap -c keymap_drawer.config.yaml \
+  draw assets/adv360.yaml -j config/info.json > assets/adv360.svg
+```
+
 ## Modifying the keymap
 
 [The ZMK documentation](https://zmk.dev/docs) covers both basic and advanced functionality and has a table of OS compatibility for keycodes. Please note that the RGB Underglow, Backlight and Power Management sections are not relevant to the Advantage 360 Pro's custom ZMK fork. For more information see [this note](#note)
